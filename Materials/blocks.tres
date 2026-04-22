@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://stn5iwsir2qn"]
+
+[ext_resource type="Texture2D" uid="uid://b74h7cornqrn2" path="res://Assets/texture_08.png" id="1_gd2cw"]
+
+[resource]
+albedo_color = Color(0.4916402, 0.6651973, 0.76663125, 1)
+albedo_texture = ExtResource("1_gd2cw")
+uv1_triplanar = true
+stencil_flags = 2
