@@ -1,10 +1,19 @@
 extends CharacterBody3D
 
+## For scaling delta 
+const DELTA_SCALE = 100
+
 ## Export variables
+## How fast the player moves
 @export var MOVE_SPEED := 2.5
+## How fast the player runs
 @export var RUN_SPEED := 4.0
+## How fast the player rolls
 @export var ROLL_SPEED := 5.0
+## How high the player jumps
 @export var JUMP_VELOCITY := 5.5
+## How fast the player turns
+@export var TURN_SCALAR := 10
 ## Multiplier for the player's turn.
 @export_range(0.0, 1.0, 0.01) var TURN_IMMEDIATE := 1.0
 ## Multiplier for the player's acceleration.
@@ -18,6 +27,9 @@ extends CharacterBody3D
 @onready var camera := %Camera
 @onready var model := $Model
 @onready var animation_player := $Model/AnimationPlayer
+
+var physics_time = 0.0
+var process_time = 0.0
 
 ## Instance shared variables.
 var speed := 0.0
@@ -38,7 +50,7 @@ var state_id : State
 ## Set up our player.
 func _ready() -> void: 
 	## Ensures the camera doesn't "bump into" the player -- see camera.gd.
-	camera.add_excluded_object(self)
+	camera.set_following(self)
 	## Capture the mouse.
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	## Set up our animation blend times and transitions to look better!
@@ -57,8 +69,8 @@ func _physics_process(delta: float) -> void:
 	state.call(delta)
 	
 	## Velocity calculations.
-	velocity.x = direction.x * speed
-	velocity.z = direction.y * speed
+	velocity.x = direction.x * speed * delta * DELTA_SCALE
+	velocity.z = direction.y * speed * delta * DELTA_SCALE
 	
 	## Gravity is always applied.
 	velocity += get_gravity() * delta
@@ -82,7 +94,7 @@ func change_state(new_state):
 
 ## Shared player movement input and camera turn code.
 ## Returns whether or not there is currently ANY movement input.
-func turn_with_input() -> bool:
+func turn_with_input(delta) -> bool:
 	## Get input according to Project -> Project Settings -> Input Map.
 	input_dir = Input.get_vector("left", "right", "up", "down")
 	## If this vector is zero (or approximately), don't bother updating.
@@ -93,12 +105,13 @@ func turn_with_input() -> bool:
 		var goal_direction = input_dir.rotated(-camera.rotation.y)
 		## Because move_toward uses linear interpolation, we provide an eased delta.
 		## Otherwise the turn_immediate value has too much weight at low values.
-		direction = direction.move_toward(goal_direction, ease(TURN_IMMEDIATE, 4.0))
+		direction = direction.move_toward(goal_direction, ease(TURN_IMMEDIATE, 4.0) * delta * DELTA_SCALE)
 		
 		## Turn to face our direction.
 		var goal_position = global_position + Vector3(direction.x, 0.0, direction.y)
 		if global_position != goal_position:
-			global_rotation.y = lerp_angle(global_rotation.y, atan2(direction.x, direction.y), 0.2)
+			var dir = atan2(direction.x, direction.y)
+			global_rotation.y = lerp_angle(global_rotation.y, dir, TURN_SCALAR * delta)
 	
 	## Return whether or not we have received movement input.
 	return is_move_input
@@ -130,8 +143,8 @@ func initialise_animations() -> void:
 
 
 ## State callable functions.
-func _idle(_delta: float):
-	var is_moving = turn_with_input()
+func _idle(delta: float):
+	var is_moving = turn_with_input(delta)
 	update_move_speed(is_moving)
 	
 	## Handle Idle/Move/Run animations.
@@ -171,13 +184,13 @@ func _jump_start(_delta: float):
 
 
 ## Jump until we hit the floor.
-func _jump(_delta: float):
-	var is_moving = turn_with_input()
+func _jump(delta: float):
+	var is_moving = turn_with_input(delta)
 	update_move_speed(is_moving)
 	
 	## Control for variable jump when player is not holding down jump button
 	if not Input.is_action_pressed("jump") and velocity.y > 0.0:
-		velocity.y = move_toward(velocity.y, 0.0, VARIABLE_JUMP)
+		velocity.y = move_toward(velocity.y, 0.0, VARIABLE_JUMP * delta * DELTA_SCALE)
 	
 	## Check for state change transitions.
 	if is_on_floor():
@@ -188,8 +201,8 @@ func _jump(_delta: float):
 
 
 ## Roll forwards at a constant speed.
-func _roll(_delta: float):
-	turn_with_input()
+func _roll(delta: float):
+	turn_with_input(delta)
 	
 	## Rolling has a constant speed.
 	speed = ROLL_SPEED
