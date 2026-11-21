@@ -28,7 +28,7 @@ func _process(_delta: float) -> void:
 		global_position = following.global_position
 	
 	## Rotate the camera target according to controller movement, if any.
-	var x = Input.get_axis("camera_right", "camera_left")
+	var x = Input.get_axis("camera_left", "camera_right")
 	var y = Input.get_axis("camera_up", "camera_down")
 	rotate_camera_target(x, y, CONTROLLER_SENSITIVITY)
 	
